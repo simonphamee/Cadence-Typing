@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Cadence — typing speed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* type + layout tokens */
+    --mono:'JetBrains Mono',ui-monospace,monospace;
+    --sans:'Inter',system-ui,sans-serif;
+    --lh:46px;
+    --fs:28px;
+    --radius:12px;
+
+    /* DARK THEME (default) — deep plum-charcoal + neon amber */
+    --bg:#16131c;
+    --bg-raised:#1f1b27;
+    --line:#2a2533;
+    --dim:#574f60;        /* untyped */
+    --bright:#f1ebda;     /* typed correct */
+    --error:#e0526a;
+    --error-soft:rgba(224,82,106,0.16);
+    --accent:#f2b441;     /* amber ink — signature */
+    --accent-rgb:242,180,65;
+    --accent-soft:rgba(242,180,65,0.14);
+    --muted:#8a8192;
+    --knob:#6b6470;
+    --veil:rgba(22,19,28,0.55);
+    --shadow:0 2px 10px rgba(0,0,0,0.32), 0 1px 2px rgba(0,0,0,0.40);
+    --shadow-lg:0 16px 50px rgba(0,0,0,0.45);
+  }
+  :root[data-theme="light"]{
+    /* LIGHT THEME — crisp off-white + sharp slate-blue */
+    --bg:#f8f9fa;
+    --bg-raised:#ffffff;
+    --line:#e6e9ee;
+    --dim:#b3bbc6;        /* untyped */
+    --bright:#1f2733;     /* typed correct — dark charcoal */
+    --error:#d92d4b;
+    --error-soft:rgba(217,45,75,0.12);
+    --accent:#3a5bd9;     /* slate-blue */
+    --accent-rgb:58,91,217;
+    --accent-soft:rgba(58,91,217,0.12);
+    --muted:#79828f;
+    --knob:#c7ccd4;
+    --veil:rgba(248,249,250,0.62);
+    --shadow:0 2px 10px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.08);
+    --shadow-lg:0 18px 50px rgba(15,23,42,0.12);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;}
+  body{
+    background:var(--bg);
+    color:var(--bright);
+    font-family:var(--sans);
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+    min-height:100dvh;padding:28px;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;overflow-y:auto;
+    transition:background-color 0.3s ease, color 0.3s ease;
+  }
+  /* smooth palette flip for themed surfaces (excludes position-animated nodes) */
+  header, footer, .stage, .modes, .iconbtn, .viewport, .chip, .chart-wrap,
+  .stat .num, .stat .lbl, .rrow .v, .rrow .k, .key, .chart-axis, .misses-label,
+  .hero .big, .hero .unit, .wordmark, .wordmark small, .veil{
+    transition:background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .stage{width:100%;max-width:880px;}
+
+  /* header */
+  header{
+    display:flex;align-items:baseline;justify-content:space-between;
+    margin-bottom:34px;gap:16px;flex-wrap:wrap;
+  }
+  .wordmark{
+    font-family:'JetBrains Mono',monospace;
+    font-weight:700;font-size:20px;letter-spacing:-0.5px;
+    color:var(--bright);display:flex;align-items:baseline;gap:9px;
+  }
+  .wordmark .blink{color:var(--accent);}
+  .wordmark small{
+    font-family:'Inter',sans-serif;font-weight:500;font-size:11px;
+    letter-spacing:2px;text-transform:uppercase;color:var(--muted);
+  }
+  .modes{display:flex;gap:4px;background:var(--bg-raised);padding:5px;border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line);}
+  .mode{
+    border:0;background:transparent;color:var(--muted);
+    font-family:var(--mono);font-weight:500;font-size:13px;
+    padding:8px 16px;border-radius:8px;cursor:pointer;
+    transition:color .18s ease, background-color .18s ease;
+  }
+  .mode:hover{color:var(--bright);}
+  .mode[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);}
+
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;}
+  .iconbtn{
+    border:1px solid var(--line);background:var(--bg-raised);
+    width:38px;height:38px;border-radius:10px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--accent);box-shadow:var(--shadow);
+    transition:color .18s ease, background-color .18s ease, box-shadow .18s ease, border-color .3s ease;
+  }
+  .iconbtn:hover{background:var(--accent-soft);}
+  .iconbtn svg{width:17px;height:17px;}
+  /* sound icon states */
+  .sound .ico-off{display:none;}
+  .sound.muted{color:var(--muted);}
+  .sound.muted .ico-on{display:none;}
+  .sound.muted .ico-off{display:block;}
+  /* theme icon states — moon while dark, sun while light */
+  .theme .ico-sun{display:none;}
+  :root[data-theme="light"] .theme .ico-moon{display:none;}
+  :root[data-theme="light"] .theme .ico-sun{display:block;}
+
+  /* live bar */
+  .live{
+    display:flex;align-items:flex-end;justify-content:space-between;
+    gap:18px;margin-bottom:18px;min-height:46px;flex-wrap:wrap;
+  }
+  .live-left{display:flex;align-items:flex-end;gap:34px;}
+  .stat{display:flex;flex-direction:column;line-height:1;}
+  .stat .num{
+    font-family:'JetBrains Mono',monospace;font-weight:700;
+    font-size:34px;color:var(--accent);font-variant-numeric:tabular-nums;
+  }
+  .stat .lbl{
+    font-size:10px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--muted);margin-top:6px;
+  }
+  .stat.secondary .num{font-size:22px;color:var(--muted);font-weight:500;}
+
+  /* difficulty toggles */
+  .mods{display:flex;align-items:center;gap:20px;padding-bottom:4px;flex-wrap:wrap;}
+  .tog{display:flex;align-items:center;gap:9px;}
+  .tog-lbl{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);transition:color .15s;white-space:nowrap;}
+  .sw{
+    position:relative;width:36px;height:20px;border-radius:20px;border:0;
+    background:var(--line);cursor:pointer;padding:0;flex:none;transition:background .18s;
+  }
+  .knob{
+    position:absolute;top:2.5px;left:2.5px;width:15px;height:15px;border-radius:50%;
+    background:var(--knob);transition:left .18s ease,background .18s;
+  }
+  .sw[aria-checked="true"]{background:var(--accent-soft);}
+  .sw[aria-checked="true"] .knob{left:18.5px;background:var(--accent);}
+  .sw.danger[aria-checked="true"]{background:var(--error-soft);}
+  .sw.danger[aria-checked="true"] .knob{background:var(--error);}
+  .tog.on .tog-lbl{color:var(--bright);}
+  .tog.danger.on .tog-lbl{color:var(--error);}
+
+  /* red flash on sudden death */
+  .flash{
+    position:fixed;inset:0;z-index:60;pointer-events:none;opacity:0;
+    background:radial-gradient(circle at center, rgba(90,12,24,0) 35%, rgba(90,12,24,.85) 100%),
+               rgba(74,10,20,.55);
+  }
+  .flash.on{animation:flash .6s ease;}
+  @keyframes flash{0%{opacity:0;}22%{opacity:1;}100%{opacity:0;}}
+
+  /* typing viewport */
+  .viewport{
+    position:relative;height:calc(var(--lh)*3);overflow:hidden;
+    cursor:text;-webkit-mask-image:linear-gradient(#000 86%,transparent);
+            mask-image:linear-gradient(#000 86%,transparent);
+  }
+  .words{
+    position:relative;
+    font-family:'JetBrains Mono',monospace;font-weight:400;
+    font-size:var(--fs);line-height:var(--lh);
+    color:var(--dim);transition:transform .14s ease, color .3s ease;
+    user-select:none;
+    white-space:normal;        /* wrap onto new rows at the spaces between words */
+  }
+  .word{display:inline-block;white-space:nowrap;}  /* a word never splits across rows */
+  .ch{position:relative;transition:color .3s ease, opacity .25s ease;}
+  .ch.space{display:inline;}   /* real inline space = the line-break opportunity */
+  .ch.correct{color:var(--bright);}
+  .ch.incorrect{color:var(--error);}
+  .ch.space.incorrect{background:var(--error-soft);border-radius:3px;}
+  /* blind mode: correct characters vanish, leaving only what's ahead */
+  .words.blind .ch.correct{opacity:0;}
+  .caret{
+    position:absolute;width:2.5px;height:calc(var(--fs)*1.08);
+    background:var(--accent);border-radius:2px;top:6px;left:0;
+    box-shadow:0 0 10px var(--accent-soft);
+    transition:left 0.1s ease,top 0.1s ease;
+    animation:pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1;box-shadow:0 0 8px var(--accent-soft);}
+    50%{opacity:.3;box-shadow:0 0 18px var(--accent-soft);}
+  }
+  .typing .caret{animation:none;opacity:1;}
+
+  /* error shake — applied to the whole stage for 150ms */
+  @keyframes shake{
+    10%,90%{transform:translateX(-2px);}
+    20%,80%{transform:translateX(3px);}
+    30%,50%,70%{transform:translateX(-5px);}
+    40%,60%{transform:translateX(5px);}
+  }
+  .stage.shake{animation:shake .15s cubic-bezier(.36,.07,.19,.97);}
+
+  /* focus veil */
+  .veil{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:var(--veil);backdrop-filter:blur(2px);
+    font-size:14px;color:var(--muted);letter-spacing:.3px;cursor:pointer;
+    transition:opacity .2s;
+  }
+  .veil.hide{opacity:0;pointer-events:none;}
+
+  .ghost{position:absolute;left:-9999px;top:0;opacity:0;}
+
+  /* footer */
+  footer{
+    display:flex;align-items:center;justify-content:center;gap:18px;
+    margin-top:30px;font-size:12px;color:var(--muted);
+  }
+  .key{
+    font-family:'JetBrains Mono',monospace;font-size:11px;
+    background:var(--bg-raised);border:1px solid var(--line);
+    padding:2px 8px;border-radius:5px;color:var(--bright);
+  }
+  .restart{
+    border:0;background:transparent;color:var(--muted);cursor:pointer;
+    font-family:'Inter',sans-serif;font-size:12px;display:flex;align-items:center;gap:7px;
+    padding:0;transition:color .15s;
+  }
+  .restart:hover{color:var(--accent);}
+  .restart svg{width:13px;height:13px;}
+
+  /* results / analytics */
+  .results{
+    display:none;flex-direction:column;gap:28px;width:100%;
+    animation:rise .35s ease both;
+  }
+  .results.show{display:flex;}
+  @keyframes rise{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+  .r-top{display:flex;align-items:flex-end;gap:48px;flex-wrap:wrap;}
+  .hero{display:flex;flex-direction:column;line-height:1;}
+  .hero .big{
+    font-family:'JetBrains Mono',monospace;font-weight:700;font-size:78px;
+    color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:-3px;
+  }
+  .hero .unit{font-size:13px;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-top:4px;}
+  .r-stats{display:flex;gap:36px;padding-bottom:8px;}
+  .rrow{display:flex;flex-direction:column;line-height:1;}
+  .rrow .v{font-family:'JetBrains Mono',monospace;font-weight:500;font-size:24px;color:var(--bright);font-variant-numeric:tabular-nums;}
+  .rrow .k{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:7px;}
+
+  .chart-wrap{
+    position:relative;width:100%;
+    background:var(--bg-raised);border:1px solid var(--line);
+    border-radius:var(--radius);padding:18px 18px 12px;box-shadow:var(--shadow);
+  }
+  .chart-axis{
+    display:block;margin:0 0 6px 2px;font-size:10px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--muted);
+  }
+  #chart{width:100%;height:200px;display:block;}
+
+  .misses{display:flex;flex-direction:column;gap:13px;}
+  .misses-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{
+    display:flex;align-items:center;gap:9px;background:var(--bg-raised);
+    border:1px solid var(--line);border-radius:10px;padding:8px 12px;box-shadow:var(--shadow);
+  }
+  .chip .cc{font-family:var(--mono);font-size:16px;color:var(--error);line-height:1;}
+  .chip .cn{font-family:var(--mono);font-size:12px;color:var(--muted);}
+  .chip.clean{font-size:13px;color:var(--muted);box-shadow:none;}
+
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px;}
+
+  @media (max-width:560px){
+    :root{--fs:23px;--lh:38px;}
+    header{margin-bottom:24px;}
+    .hero .big{font-size:60px;}
+    .r-top{gap:28px;}
+    .r-stats{gap:22px;}
+    #chart{height:170px;}
+    .live{gap:18px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .words,.caret{transition:none;}
+    .caret{animation:none;}
+    .results{animation:none;}
+    .stage.shake{animation:none;}
+  }
+</style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <header>
+      <div class="wordmark">cadence<span class="blink">_</span><small>typing&nbsp;speed</small></div>
+      <div class="controls">
+        <div class="modes" id="content" role="group" aria-label="Content type">
+          <button class="mode" data-mode="words" aria-pressed="true">Words</button>
+          <button class="mode" data-mode="code">Code</button>
+          <button class="mode" data-mode="quotes">Quotes</button>
+        </div>
+        <div class="modes" id="modes" role="group" aria-label="Test length">
+          <button class="mode" data-sec="15">15s</button>
+          <button class="mode" data-sec="30" aria-pressed="true">30s</button>
+          <button class="mode" data-sec="60">60s</button>
+        </div>
+        <button class="iconbtn sound" id="sound" aria-pressed="true" aria-label="Toggle sound" title="Sound on">
+          <svg class="ico-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a9 9 0 0 1 0 14"/></svg>
+          <svg class="ico-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
+        </button>
+        <button class="iconbtn theme" id="theme" aria-label="Toggle light or dark theme" title="Switch theme">
+          <svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+          <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- PLAY -->
+    <section id="play">
+      <div class="live">
+        <div class="live-left">
+          <div class="stat"><span class="num" id="clock">30</span><span class="lbl">seconds</span></div>
+          <div class="stat secondary"><span class="num" id="liveWpm">0</span><span class="lbl">wpm</span></div>
+        </div>
+        <div class="mods">
+          <div class="tog danger" id="sdTog">
+            <span class="tog-lbl">sudden&nbsp;death</span>
+            <button class="sw danger" id="sdSwitch" role="switch" aria-checked="false" aria-label="Sudden death mode"><span class="knob"></span></button>
+          </div>
+          <div class="tog" id="blindTog">
+            <span class="tog-lbl">blind</span>
+            <button class="sw" id="blindSwitch" role="switch" aria-checked="false" aria-label="Blind typing mode"><span class="knob"></span></button>
+          </div>
+        </div>
+      </div>
+      <div class="viewport" id="viewport">
+        <div class="words" id="words"></div>
+        <div class="veil" id="veil">click here or just start typing</div>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section class="results" id="results" aria-live="polite">
+      <div class="r-top">
+        <div class="hero">
+          <span class="big" id="rWpm">0</span>
+          <span class="unit">words per minute</span>
+        </div>
+        <div class="r-stats">
+          <div class="rrow"><span class="v" id="rAcc">0%</span><span class="k">accuracy</span></div>
+          <div class="rrow"><span class="v" id="rRaw">0</span><span class="k">raw wpm</span></div>
+          <div class="rrow"><span class="v" id="rChars">0</span><span class="k">chars ok / err</span></div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <span class="chart-axis">wpm over time</span>
+        <canvas id="chart"></canvas>
+      </div>
+      <div class="misses">
+        <span class="misses-label">trouble keys</span>
+        <div class="chips" id="chips"></div>
+      </div>
+    </section>
+
+    <footer>
+      <button class="restart" id="restart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+        restart
+      </button>
+      <span>or press <span class="key">Tab</span></span>
+    </footer>
+  </div>
+
+  <input class="ghost" id="ghost" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-hidden="true">
+  <div class="flash" id="flash" aria-hidden="true"></div>
+
+<script>
+(function(){
+  // Words mode buffer — long, coherent paragraphs (~230-290 words each).
+  // One full paragraph easily covers a 60s run; a fast typist gets another appended.
+  const PARAGRAPHS = [
+    "Sedimentary rocks form through the slow and patient accumulation of material at the surface of the Earth. Over thousands and even millions of years, tiny particles of sand, silt, and clay are carried by rivers, wind, and ocean currents until they settle into quiet basins where the water barely moves. Layer upon layer builds in horizontal sheets, each one pressing down on the beds below it. As the weight increases, the grains are squeezed together; natural minerals then seep into the gaps, cementing the loose sediment into solid, well-packed stone. Geologists read these layers like the pages of a book, because every band of color and texture records a moment in the distant past. A thick bed of limestone might reveal that a warm shallow sea once covered the region, while ripples preserved in sandstone hint at an ancient beach where waves lapped against the shore. Fossils trapped between the layers offer even more detail, capturing the shapes of creatures that lived and died long before any human walked the planet. When the ground later lifts and erosion strips away the surface, these hidden chapters are exposed in cliffs and canyons for anyone willing to look. The Grand Canyon is perhaps the most famous example, where the river has carved down through nearly two billion years of stacked history. Studying these formations allows scientists to reconstruct vanished landscapes, track shifting climates, and understand how the restless surface of our world has changed across the vast reaches of geologic time.",
+
+    "Far beyond the comfortable glow of our own star lies a universe of almost unimaginable scale. Light, which travels fast enough to circle the Earth seven times in a single second, still takes more than four years to reach us from the nearest neighboring star. When astronomers peer through their telescopes, they are not seeing the present at all but gazing deep into the past, because the light arriving tonight began its journey long ago. Some of the faint smudges visible in the darkest skies are entire galaxies, each one home to hundreds of billions of stars, and the observable universe holds more of these galaxies than there are grains of sand on every beach on our planet. Within this immense expanse, matter gathers under the pull of gravity into swirling clouds of gas and dust. Inside these nurseries, new stars ignite when the pressure at their cores grows hot enough to fuse hydrogen into helium, releasing the energy that makes them shine. Around many of these stars, leftover material settles into spinning disks that slowly clump together into planets, moons, and rings. Our own solar system emerged from such a disk roughly four-and-a-half billion years ago; it was once just another anonymous cloud among countless others. Stars do not burn forever, and when the largest ones exhaust their fuel they collapse and explode in brilliant bursts that scatter heavy elements across space. Those same elements, forged in the hearts of dying stars, eventually became the carbon in our bodies and the iron in our blood, binding us closely to the cosmos above.",
+
+    "The invention of the printing press in the middle of the fifteenth century quietly reshaped the course of human history. Before this moment, every book had to be copied by hand, a painstaking task that could occupy a skilled scribe for months or even years. Because of this enormous effort, written works were rare and expensive, locked away in monasteries and the libraries of the wealthy few. A craftsman named Johannes Gutenberg changed everything when he combined movable metal type, oil-based ink, and a modified wine press into a single efficient machine. Suddenly the same page could be printed hundreds of times in a single day; knowledge that had once trickled slowly through society now flowed in a rising flood. Ideas about science, religion, and government spread across the continent faster than any ruler could control. Ordinary people who learned to read gained access to thoughts and discoveries that had previously been reserved for scholars. Pamphlets and printed books fueled debates, sparked revolutions, and helped ignite the great movements that defined the following centuries. Literacy slowly climbed as printed material grew cheaper and more common, and with it grew a hunger for education that transformed entire nations. The printing press did not simply make copies faster, it democratized information itself, handing the power of the written word to a far broader share of humanity. In many ways the rapid sharing of knowledge that we take for granted today, including the very screens we now read from, traces its roots back to that clever wooden machine.",
+
+    "The modern internet began as a modest experiment designed to keep a handful of research computers talking to one another. In its earliest days, only a few machines scattered across universities and laboratories were connected, exchanging simple messages through a network that few people outside those institutions had ever heard of. The crucial breakthrough was a shared set of rules, a common, well-defined language that allowed very different computers to understand each other, regardless of who had built them. Once that foundation existed, the network could grow without any single company or government controlling its shape. Engineers added new connections one by one, and what started as a small web of nodes expanded into a sprawling global system. The arrival of the world wide web made this hidden network visible and friendly to ordinary people, wrapping raw data in pages that anyone could click through with ease. Suddenly information from the far side of the planet was only a moment away; the distance between strangers seemed to shrink. Businesses, libraries, and curious individuals rushed to stake out their own corner of this new digital landscape. Today billions of devices, from the phones in our pockets to sensors in distant factories, hum along on the same basic principles laid down decades ago. Every video we stream, every message we send, and every search we type travels as countless tiny packets, broken apart, routed across the world, and stitched back together in the blink of an eye. It is a quiet marvel of cooperation that has woven itself into nearly every part of daily life.",
+
+    "The lighthouse had stood at the edge of the rocky point for as long as anyone in the village could remember. Each evening, as the sun melted into the gray water, old Marta climbed the winding iron stairs to light the great lamp at the top. She had kept the light burning for forty years, ever since her father had handed her the heavy brass key and told her that the sea would always need watching. On calm nights the work was peaceful, and she would sit by the glass and listen to the gulls settle on the cliffs below. But when storms rolled in from the open ocean, the tower groaned against the wind and salt spray hammered the windows like handfuls of gravel. On those nights Marta never slept; she knew that somewhere beyond the darkness, a fishing boat might be searching for the steady beam that meant home and safety. One bitter autumn evening, a weather-beaten ship appeared far out among the waves, its sails torn and its lanterns long since drowned. Marta turned the lamp with all her strength, sweeping the light back and forth across the churning water until at last the distant vessel answered with a faint flicker of its own. For hours she guided it past the hidden reefs, and when dawn finally broke, the weary crew rowed safely into the harbor. They never learned the name of the woman in the tower, but every sailor along that coast spoke of the light that had refused to go out, faithful and unwavering against the long and merciless night.",
+
+    "The deep ocean remains one of the least explored regions on the entire planet, a vast and shadowy world that begins where sunlight finally surrenders to darkness. Below a few hundred meters, the comfortable blue of the shallows gives way to an endless black, and the pressure grows crushing enough to flatten ordinary machines. Yet life thrives even here, in forms so strange that they seem borrowed from another world. Many creatures of the deep produce their own light through a chemical trick called bioluminescence, flashing tiny lanterns to lure prey, confuse predators, or call out to a mate across the gloom. Some fish carry glowing bait dangling from their heads, while others release clouds of shimmering particles to vanish behind a screen of false stars. Food is scarce in these depths; animals have evolved enormous mouths and stretchy, expandable stomachs to swallow whatever rare meal drifts past. Far below, hidden cracks in the ocean floor leak scalding mineral-rich water, and around these vents entire communities flourish without any sunlight at all. Instead of relying on plants, they depend on bacteria that draw energy directly from the chemicals pouring out of the Earth. Giant tube worms, ghostly crabs, and clams the size of dinner plates crowd around the warmth, building ecosystems that astonished scientists when they were first discovered. Every expedition into these depths returns with creatures never seen before, a humbling reminder that we have mapped the surface of distant moons more thoroughly than the dark waters that cover most of our own world.",
+
+    "A single honeybee may seem small and unremarkable, but together a colony behaves almost like one clever creature with thousands of bodies. Inside the hive, tens of thousands of workers divide the labor with remarkable precision, each tending to the tasks that suit its age and strength. The youngest bees clean the cells and care for the growing larvae, while older workers venture out to gather nectar and pollen from flowers scattered across the surrounding fields. When a forager discovers a rich patch of blossoms, she returns home and performs a curious dance, tracing looping patterns across the comb to tell her sisters exactly where to fly. The angle of her movements points toward the sun; the length of her waggle reveals the distance to the prize. Through this silent language, the colony directs its workforce with stunning efficiency. Back inside, the gathered nectar is passed from mouth to mouth and slowly thickened into honey, a golden store of energy that will carry the hive through the cold and barren months of winter. At the heart of it all rests a single queen, whose constant laying of eggs keeps the population strong. Though no individual bee understands the grand design, their combined instincts build elaborate, six-sided wax architecture, regulate the temperature of the nest, and defend their home against intruders. Beyond the hive, their tireless visits to flower after flower pollinate a huge share of the crops that feed our world, making these humble insects quietly essential to the survival of countless other living things, including us."
+  ];
+
+  // code snippets — real syntax with brackets, operators, punctuation
+  const CODE = [
+    "for (let i = 0; i < n; i++) {",
+    "const matrix = [[0]];",
+    "if (err) throw err;",
+    "for i in range(len(arr)):",
+    "def solve(nums, target):",
+    "return left + (right - left) / 2;",
+    "const result = arr.map(x => x * 2);",
+    "while (head != null) {",
+    "let sum = nums.reduce((a, b) => a + b, 0);",
+    "arr.sort((a, b) => a - b);",
+    "if (x > 0 && y < 10) {",
+    "const map = new Map();",
+    "data = [x for x in range(100)]",
+    "try { run(); } catch (e) {}",
+    "const { name, age } = person;",
+    "export default function App() {",
+    "queue.push([row, col, dist + 1]);",
+    "return nums[mid] == target ? mid : -1;",
+    "dp[i][j] = dp[i-1][j] + dp[i][j-1];",
+    "console.log(\"done\");",
+    "throw new Error(\"not found\");",
+    "let [a, b] = [b, a];",
+    "visited.add((nx, ny));",
+    "const isValid = (s) => s.length > 0;",
+    "SELECT * FROM users WHERE id = 1;",
+    "import { useState } from \"react\";",
+    "public static void main(String[] args)",
+    "if (!cache.has(key)) cache.set(key, 0);"
+  ];
+
+  // quotes — public-domain literature, philosophy, proverbs, short famous lines
+  const QUOTES = [
+    "It was the best of times, it was the worst of times.",
+    "Call me Ishmael.",
+    "All happy families are alike; each unhappy family is unhappy in its own way.",
+    "To be, or not to be, that is the question.",
+    "All the world's a stage, and all the men and women merely players.",
+    "I think, therefore I am.",
+    "The unexamined life is not worth living.",
+    "We are what we repeatedly do.",
+    "That which does not kill us makes us stronger.",
+    "Knowing yourself is the beginning of all wisdom.",
+    "The journey of a thousand miles begins with a single step.",
+    "Whatever you are, be a good one.",
+    "Actions speak louder than words.",
+    "The early bird catches the worm.",
+    "Fortune favors the bold.",
+    "Practice makes perfect.",
+    "When in Rome, do as the Romans do.",
+    "The course of true love never did run smooth.",
+    "Some are born great, some achieve greatness.",
+    "May the Force be with you.",
+    "Here's looking at you, kid.",
+    "Houston, we have a problem.",
+    "Just keep swimming.",
+    "Why so serious?"
+  ];
+
+  // state
+  let secs=30, target=secs, MODE='words';
+  let chars=[], spans=[], typed=[], pos=0;
+  let started=false, finished=false;
+  let keystrokes=0, errors=0;
+  let timerId=null, startTime=0;
+  let scrollPx=0;
+  let muted=false, actx=null;
+  let SUDDEN=false, BLIND=false;
+  let wpmSeries=[], missCounts={}, nextLog=1;
+  const LH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--lh'));
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const $ = id => document.getElementById(id);
+  const wordsEl=$('words'), viewport=$('viewport'), ghost=$('ghost'),
+        veil=$('veil'), play=$('play'), results=$('results'), stageEl=$('stage'), flashEl=$('flash');
+  const clockEl=$('clock'), liveWpmEl=$('liveWpm');
+
+  /* ---- audio: synthesized clicks via Web Audio API ---- */
+  function audio(){
+    if(!actx){
+      try{ actx = new (window.AudioContext||window.webkitAudioContext)(); }
+      catch(e){ actx=null; }
+    }
+    if(actx && actx.state==='suspended') actx.resume();
+    return actx;
+  }
+  function blip(freq, dur, type, vol){
+    if(muted) return;
+    const ac=audio(); if(!ac) return;
+    const t=ac.currentTime;
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type=type;
+    o.frequency.setValueAtTime(freq, t);
+    o.frequency.exponentialRampToValueAtTime(freq*0.55, t+dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t+0.004);   // quick attack, no pop
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);  // fast decay
+    o.connect(g).connect(ac.destination);
+    o.start(t); o.stop(t+dur+0.02);
+  }
+  // crisp click for letters, lower thud for the spacebar
+  const clickSound = () => blip(1650 + Math.random()*260, 0.035, 'square',   0.10);
+  const thudSound  = () => blip(360  + Math.random()*70,  0.065, 'triangle', 0.16);
+
+  /* ---- screen shake on error ---- */
+  function shake(){
+    if(prefersReduced) return;
+    stageEl.classList.remove('shake');
+    void stageEl.offsetWidth;            // force reflow so it can re-trigger
+    stageEl.classList.add('shake');
+  }
+  stageEl.addEventListener('animationend', ()=>stageEl.classList.remove('shake'));
+
+  /* ---- sudden death: stop, flash red, hard reset ---- */
+  function suddenDeath(){
+    clearInterval(timerId);
+    finished=true;                       // block further input during the flash
+    document.body.classList.remove('typing');
+    flashEl.classList.remove('on'); void flashEl.offsetWidth; flashEl.classList.add('on');
+    setTimeout(()=>{ flashEl.classList.remove('on'); reset(); }, 650);
+  }
+
+  function sample(arr,n){ let o=[]; for(let i=0;i<n;i++) o.push(arr[(Math.random()*arr.length)|0]); return o.join(' '); }
+
+  // mode-aware text generation (initial = larger first chunk for code/quotes)
+  function content(initial){
+    if(MODE==='code')   return sample(CODE,   initial?7:4);
+    if(MODE==='quotes') return sample(QUOTES, initial?5:3);
+    return PARAGRAPHS[(Math.random()*PARAGRAPHS.length)|0];  // words: one whole coherent paragraph
+  }
+
+  // escape HTML-significant chars so code like `if (x < n)` renders literally
+  function esc(c){ return c==='&'?'&amp;':c==='<'?'&lt;':c==='>'?'&gt;':c; }
+
+  // Build word-grouped HTML: each run of non-space chars becomes an inline-block
+  // .word (which can never split mid-word), and every space becomes an inline
+  // break point between words. querySelectorAll('.ch') still returns every
+  // character in order, so the flat `pos` indexing is unchanged.
+  function renderChars(arr){
+    let html='', i=0;
+    while(i < arr.length){
+      if(arr[i] === ' '){
+        html += '<span class="ch space"> </span>';
+        i++;
+      } else {
+        html += '<span class="word">';
+        while(i < arr.length && arr[i] !== ' '){ html += '<span class="ch">'+esc(arr[i])+'</span>'; i++; }
+        html += '</span>';
+      }
+    }
+    return html;
+  }
+
+  function buildPassage(text){
+    chars = text.split('');
+    wordsEl.innerHTML = '<span class="caret" id="caret"></span>' + renderChars(chars);
+    spans = Array.from(wordsEl.querySelectorAll('.ch'));
+    typed = new Array(chars.length).fill(null);
+  }
+
+  // Keep the stream endless: when the cursor nears the end, append more text.
+  // No Tab reset is ever required mid-test — it loops straight into new rows.
+  function extendIfNeeded(){
+    if(pos < chars.length - 40) return;
+    const extra = (' ' + content(false)).split('');
+    wordsEl.insertAdjacentHTML('beforeend', renderChars(extra));
+    chars = chars.concat(extra);
+    typed = typed.concat(new Array(extra.length).fill(null));
+    spans = Array.from(wordsEl.querySelectorAll('.ch'));
+  }
+
+  // measure the actual rendered line height (robust to viewport/font changes)
+  function lineHeightPx(){
+    const lh = parseFloat(getComputedStyle(wordsEl).lineHeight);
+    return (lh && !isNaN(lh)) ? lh : LH;
+  }
+
+  function placeCaret(){
+    const caret=$('caret'); if(!caret) return;
+    const ref = spans[pos] || spans[pos-1];
+    if(spans[pos]){
+      caret.style.left = spans[pos].offsetLeft+'px';
+      caret.style.top  = spans[pos].offsetTop+6+'px';
+    } else if(spans[pos-1]){
+      const p=spans[pos-1];
+      caret.style.left=(p.offsetLeft+p.offsetWidth)+'px';
+      caret.style.top = p.offsetTop+6+'px';
+    }
+    // line scroll: drop the view down so the active line stays on the 2nd visible row
+    if(ref){
+      const lh = lineHeightPx();
+      const lineIndex = Math.round(ref.offsetTop / lh);
+      const want = Math.max(0, (lineIndex - 1) * lh);
+      if(want !== scrollPx){ scrollPx = want; wordsEl.style.transform = `translateY(${-want}px)`; }
+    }
+  }
+
+  function correctChars(){ let c=0; for(let i=0;i<pos;i++) if(typed[i]==='correct') c++; return c; }
+
+  function tick(){
+    const el=(Date.now()-startTime)/1000;
+    const remain=Math.max(0,target-el);
+    clockEl.textContent=Math.ceil(remain);
+    const mins=el/60;
+    liveWpmEl.textContent = mins>0 ? Math.round((correctChars()/5)/mins) : 0;
+    // log current wpm at each whole-second boundary
+    while(nextLog<=target && el>=nextLog){
+      wpmSeries.push({t:nextLog, wpm:Math.round((correctChars()/5)/(nextLog/60))});
+      nextLog++;
+    }
+    if(remain<=0) finish();
+  }
+
+  function startTimer(){
+    started=true; startTime=Date.now();
+    document.body.classList.add('typing');
+    timerId=setInterval(tick,100);
+  }
+
+  // Case- and shift-sensitive match. `c` is the literal glyph the keyboard
+  // produced — capitals arrive as 'S', shifted punctuation as ; : - _ etc.,
+  // exactly as typed — so a strict comparison is all that's needed. No
+  // lowercasing or normalization: wrong case is a genuine error.
+  function matches(typedChar, targetChar){ return typedChar === targetChar; }
+
+  function handleChar(c){
+    if(finished) return;
+    if(!started) startTimer();
+    if(pos>=chars.length) return;
+    const ok = matches(c, chars[pos]);
+    typed[pos]=ok?'correct':'incorrect';
+    spans[pos].classList.add(ok?'correct':'incorrect');
+    keystrokes++;
+    if(!ok){ errors++; missCounts[chars[pos]]=(missCounts[chars[pos]]||0)+1; }
+    if(ok){ (c===' ' ? thudSound : clickSound)(); }
+    else {
+      shake();
+      if(SUDDEN){ suddenDeath(); return; }
+    }
+    pos++;
+    extendIfNeeded();
+    placeCaret();
+  }
+
+  function handleBackspace(){
+    if(finished||pos===0) return;
+    pos--;
+    spans[pos].classList.remove('correct','incorrect');
+    typed[pos]=null;
+    placeCaret();
+  }
+
+  function finish(){
+    if(finished) return;
+    finished=true; clearInterval(timerId);
+    document.body.classList.remove('typing');
+    const mins=target/60;
+    const ok=correctChars();
+    const wpm=Math.round((ok/5)/mins);
+    const raw=Math.round((pos/5)/mins);
+    const acc=keystrokes? Math.round(((keystrokes-errors)/keystrokes)*100):100;
+    $('rWpm').textContent=wpm;
+    $('rAcc').textContent=acc+'%';
+    $('rChars').textContent=ok+' / '+errors;
+    $('rRaw').textContent=raw;
+    play.style.display='none';
+    results.classList.add('show');
+    renderMisses();
+    requestAnimationFrame(drawChart);   // wait for layout so canvas has width
+  }
+
+  /* ---- mistake analytics: chars missed more than twice ---- */
+  function renderMisses(){
+    const chips=$('chips'); chips.innerHTML='';
+    const bad=Object.entries(missCounts).filter(([,n])=>n>2).sort((a,b)=>b[1]-a[1]);
+    if(!bad.length){
+      const d=document.createElement('div');
+      d.className='chip clean';
+      d.textContent='Clean run — nothing tripped you up more than twice.';
+      chips.appendChild(d);
+      return;
+    }
+    for(const [ch,n] of bad){
+      const chip=document.createElement('div'); chip.className='chip';
+      const c=document.createElement('span'); c.className='cc';
+      c.textContent = ch===' ' ? '␣' : ch;          // textContent → no escaping needed
+      const cn=document.createElement('span'); cn.className='cn'; cn.textContent='×'+n;
+      chip.append(c,cn); chips.appendChild(chip);
+    }
+  }
+
+  /* ---- smooth performance line chart ---- */
+  function smoothPath(ctx, pts){
+    if(pts.length<3){ for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y); return; }
+    for(let i=0;i<pts.length-1;i++){
+      const p0=pts[i-1]||pts[i], p1=pts[i], p2=pts[i+1], p3=pts[i+2]||p2;
+      ctx.bezierCurveTo(
+        p1.x+(p2.x-p0.x)/6, p1.y+(p2.y-p0.y)/6,
+        p2.x-(p3.x-p1.x)/6, p2.y-(p3.y-p1.y)/6,
+        p2.x, p2.y
+      );
+    }
+  }
+
+  function drawChart(){
+    const canvas=$('chart'); if(!canvas) return;
+    const cssW=canvas.clientWidth, cssH=canvas.clientHeight;
+    if(!cssW){ requestAnimationFrame(drawChart); return; }
+    const dpr=window.devicePixelRatio||1;
+    canvas.width=cssW*dpr; canvas.height=cssH*dpr;
+    const ctx=canvas.getContext('2d');
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,cssW,cssH);
+
+    const cs=getComputedStyle(document.documentElement);
+    const cAccent=cs.getPropertyValue('--accent').trim()||'#f2b441';
+    const cLine=cs.getPropertyValue('--line').trim()||'#2a2533';
+    const cMuted=cs.getPropertyValue('--muted').trim()||'#8a8192';
+    const cBg=cs.getPropertyValue('--bg').trim()||'#16131c';
+    const aRgb=cs.getPropertyValue('--accent-rgb').trim()||'242,180,65';
+
+    const padL=42, padR=14, padT=22, padB=24;
+    const W=cssW-padL-padR, H=cssH-padT-padB;
+    const tMax=Math.max(1,target);
+    let wMax=0; for(const p of wpmSeries) if(p.wpm>wMax) wMax=p.wpm;
+    wMax=Math.max(40, Math.ceil(wMax/20)*20);
+    const X=t=>padL+(t/tMax)*W, Y=w=>padT+H-(w/wMax)*H;
+
+    ctx.font='11px Inter, sans-serif';
+    // horizontal gridlines + Y labels
+    ctx.textBaseline='middle'; ctx.textAlign='right';
+    for(let i=0;i<=4;i++){
+      const w=Math.round(wMax*i/4), y=Y(w);
+      ctx.globalAlpha=.5; ctx.strokeStyle=cLine; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(cssW-padR,y); ctx.stroke();
+      ctx.globalAlpha=1; ctx.fillStyle=cMuted; ctx.fillText(w, padL-8, y);
+    }
+    // X labels
+    ctx.textBaseline='top'; ctx.textAlign='center'; ctx.fillStyle=cMuted;
+    const ticks = tMax<=15?[0,5,10,15] : tMax<=30?[0,10,20,30] : [0,15,30,45,60];
+    for(const tk of ticks){ if(tk<=tMax) ctx.fillText(tk+'s', X(tk), cssH-padB+7); }
+
+    if(!wpmSeries.length) return;
+    let pts=wpmSeries.map(p=>({x:X(p.t), y:Y(p.wpm)}));
+    if(pts.length===1) pts=[{x:X(0),y:pts[0].y}, pts[0]];
+
+    // gradient area under the curve
+    const grad=ctx.createLinearGradient(0,padT,0,padT+H);
+    grad.addColorStop(0,`rgba(${aRgb},0.30)`);
+    grad.addColorStop(1,`rgba(${aRgb},0)`);
+    ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y); smoothPath(ctx,pts);
+    ctx.lineTo(pts[pts.length-1].x,padT+H); ctx.lineTo(pts[0].x,padT+H); ctx.closePath();
+    ctx.fillStyle=grad; ctx.fill();
+
+    // the line
+    ctx.beginPath(); ctx.moveTo(pts[0].x,pts[0].y); smoothPath(ctx,pts);
+    ctx.strokeStyle=cAccent; ctx.lineWidth=2.5; ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.shadowColor=`rgba(${aRgb},0.45)`; ctx.shadowBlur=8;
+    ctx.stroke(); ctx.shadowBlur=0;
+
+    // end marker
+    const last=pts[pts.length-1];
+    ctx.beginPath(); ctx.arc(last.x,last.y,4,0,Math.PI*2); ctx.fillStyle=cAccent; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle=cBg; ctx.stroke();
+  }
+
+  function reset(){
+    clearInterval(timerId);
+    started=false; finished=false; pos=0; keystrokes=0; errors=0; scrollPx=0;
+    wpmSeries=[]; missCounts={}; nextLog=1;
+    document.body.classList.remove('typing');
+    play.style.display=''; results.classList.remove('show');
+    wordsEl.style.transform='translateY(0)';
+    wordsEl.classList.toggle('blind', BLIND);
+    target=secs; clockEl.textContent=secs; liveWpmEl.textContent='0';
+    buildPassage(content(true));
+    placeCaret();
+    focusInput();
+  }
+
+  function focusInput(){ ghost.focus({preventScroll:true}); }
+  function setVeil(on){ veil.classList.toggle('hide',!on); }
+
+  // input: printable chars come through 'input' (works desktop + mobile),
+  // control keys through 'keydown'. ghost value is kept empty.
+  // autocapitalize/autocorrect are off on the ghost field, so the browser
+  // never silently changes case — what the user types is what we compare.
+  ghost.addEventListener('input', e=>{
+    if(e.isComposing) return;            // wait for IME composition to finish
+    const data=ghost.value;
+    for(const c of data) handleChar(c);
+    ghost.value='';
+  });
+  ghost.addEventListener('keydown', e=>{
+    if(e.key==='Tab'){ e.preventDefault(); reset(); return; }
+    if(e.key==='Backspace'){ e.preventDefault(); handleBackspace(); }
+  });
+  ghost.addEventListener('focus',()=>setVeil(false));
+  ghost.addEventListener('blur',()=>{ if(!finished) setVeil(true); });
+
+  // desktop: typing anywhere should grab focus + start
+  window.addEventListener('keydown', e=>{
+    if(document.activeElement===ghost) return;
+    if(e.key==='Tab'){ e.preventDefault(); reset(); return; }
+    if(e.key.length===1 && !e.ctrlKey && !e.metaKey && !e.altKey){ focusInput(); }
+  });
+
+  viewport.addEventListener('mousedown', e=>{ e.preventDefault(); focusInput(); });
+  veil.addEventListener('click', focusInput);
+  $('restart').addEventListener('click', ()=>{ reset(); });
+
+  $('modes').addEventListener('click', e=>{
+    const b=e.target.closest('.mode'); if(!b) return;
+    secs=+b.dataset.sec;
+    document.querySelectorAll('#modes .mode').forEach(m=>m.setAttribute('aria-pressed', m===b?'true':'false'));
+    reset();
+  });
+
+  $('content').addEventListener('click', e=>{
+    const b=e.target.closest('.mode'); if(!b) return;
+    MODE=b.dataset.mode;
+    document.querySelectorAll('#content .mode').forEach(m=>m.setAttribute('aria-pressed', m===b?'true':'false'));
+    reset();
+  });
+
+  $('sdSwitch').addEventListener('click', ()=>{
+    SUDDEN=!SUDDEN;
+    $('sdSwitch').setAttribute('aria-checked', String(SUDDEN));
+    $('sdTog').classList.toggle('on', SUDDEN);
+    reset();
+  });
+
+  $('blindSwitch').addEventListener('click', ()=>{
+    BLIND=!BLIND;
+    $('blindSwitch').setAttribute('aria-checked', String(BLIND));
+    $('blindTog').classList.toggle('on', BLIND);
+    reset();
+  });
+
+  $('sound').addEventListener('click', ()=>{
+    muted=!muted;
+    const b=$('sound');
+    b.classList.toggle('muted', muted);
+    b.setAttribute('aria-pressed', String(!muted));
+    b.title = muted ? 'Sound off' : 'Sound on';
+    if(!muted) audio();   // unlock context on user gesture
+    focusInput();
+  });
+
+  $('theme').addEventListener('click', ()=>{
+    const next = document.documentElement.dataset.theme==='light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next;
+    $('theme').title = next==='light' ? 'Switch to dark' : 'Switch to light';
+    if(results.classList.contains('show')) drawChart();  // recolor chart for new palette
+    focusInput();
+  });
+
+  window.addEventListener('resize', ()=>{
+    placeCaret();
+    if(results.classList.contains('show')) drawChart();
+  });
+
+  // boot
+  buildPassage(content(true));
+  placeCaret();
+  setVeil(true);
+})();
+</script>
+</body>
+</html>
